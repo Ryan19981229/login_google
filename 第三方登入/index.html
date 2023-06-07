@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    
+<!--     引入套件 axios 等等post到後端路由去驗證 以及 google官方的套件-->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+  </head>
+  <body>
+    <div>GOOGLE 登入</div>
+<!--     content 放上妳申請的client_Id -->
+    <meta name="google-signin-client_id" content="410776432098-flf475igigldd4akblja8mofjqc4k7i8.apps.googleusercontent.com">
+    
+<!--     放上第三方登入的button，按下去會觸發 onSignIn 的function -->
+    <div class="g-signin2" data-onsuccess="onSignIn"></div>
+    <script>
+      function onSignIn(googleUser) {
+        const url = "http://localhost:3000/auth/google"
+        
+//         會跳出去要求授權畫面，回來後才達得到token
+        let id_token = googleUser.getAuthResponse().id_token
+        
+//         拿到後傳到後端去驗證，路由可自行設定       
+         axios.post(url, {id_token})
+        .then(res => console.log('send to backend successfully'))
+        .catch(err => console.error('error: send id_token fail!'))
+     }
+    </script>
+    
+<!--     這裡是設置登出鍵 -->
+    <a href="#" onclick="signOut();">Sign out</a>
+    
+<!--     放上第三方登出的button，按下去會觸發 signOut 的function -->
+    <script>
+      function signOut() {
+        let auth2 = gapi.auth2.getAuthInstance();
+        auth2.signOut().then(function () {
+          console.log('User signed out.');
+        });
+      }
+    </script>
+  </body>
+  </html>
+  <script>
+    const express = require('express')
+const bodyparesr = require('body-parser')
+const app = express()
+const port = 3000
+
+app.use(
+  session({
+    secret: 'googleAuth'
+  })
+)
+
+//不放這個由axios發出的post 拿到的req.body會無法解析
+app.use(bodyparesr.json())
+
+// 這裡顯示登入頁的路由
+app.get('/login', (req, res) => {
+  return res.sendFile(`${__dirname}/index.html`)
+})
+app.post('/auth/google', async (req, res) => {
+ 
+  //引入官方的套件
+  const { OAuth2Client } = require('google-auth-library')
+  const CLIENT_ID =
+  '妳申請的client_Id放在這'
+  const client = new OAuth2Client(CLIENT_ID)
+  const token = req.body.id_token
+  
+  //將token和client_Id放入參數一起去做驗證
+  const ticket = await client.verifyIdToken({
+    idToken: token,
+    audience: CLIENT_ID
+  })
+  
+  //拿到的ticket就是換回來的使用者資料
+  console.log(ticket)
+  
+  //以下就個人需求看要拿資料做哪些使用
+  //ex 使用者資訊存入資料庫，把資料存到 session內 等等
+})
+
+app.listen(3000, () => {
+  console.log(`operate server at port: ${port}`)
+})
+  </script>
